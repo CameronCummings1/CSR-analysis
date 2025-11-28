@@ -1,0 +1,114 @@
+---
+title: "CSR"
+output: 
+  pdf_document:
+    latex_engine: xelatex
+date: "2025-11-28"
+---
+
+```{r}
+CSR <- read_excel("CSR manual export.xlsx", sheet = "DATA")
+
+library(dplyr)
+
+#Combining Categories
+CSR <- CSR %>%
+  rowwise() %>%
+  mutate(
+    Race = paste(
+      c(
+        if (Race_white == 1) "White",
+        if (Race_black == 1) "Black",
+        if (Race_hispanic == 1) "Hispanic",
+        if (Race_asian == 1) "Asian",
+        if (Race_other == 1) "Other",
+        if (Race_declined == 1) "Declined"
+      ),
+      collapse = ", "
+    )
+  ) %>%
+  ungroup()
+
+CSR <- CSR %>%
+  rowwise() %>%
+  mutate(
+    PsychHx = paste(
+      c(
+        if (Anxiety == 1) "Anxiety",
+        if (MDD == 1) "MDD"
+      ),
+      collapse = ", "
+    ),
+    PsychHx = ifelse(PsychHx == "", "None", PsychHx)
+  ) %>%
+  ungroup()
+
+CSR <- CSR %>%
+  rowwise() %>%
+  mutate(
+    Known_Associations = paste(
+      c(
+        if (HTN == 1) "HTN",
+        if (CAD == 1) "CAD",
+        if (DM2 == 1) "DM2",
+        if (H_pylori == 1) "H. pylori",
+        if (PUD == 1) "PUD",
+        if (OSA == 1) "OSA"
+      ),
+      collapse = ", "
+    ),
+    Known_Associations = ifelse(Known_Associations == "", "None", Known_Associations)
+  ) %>%
+  ungroup()
+```
+```{r}
+#Calculating volumes
+library(tidyr)
+
+create_OD_area <- function(data, suffix) {
+  width_col  <- paste0("OD_Subretinal_Fluid_Max_Width_", suffix)
+  height_col <- paste0("OD_Subretinal_Fluid_Max_Height_", suffix)
+  area_col   <- paste0("OD_Area_", suffix)
+
+  data %>%
+    mutate(
+      !!area_col := replace_na(as.numeric(.data[[width_col]]), 0) *
+                    replace_na(as.numeric(.data[[height_col]]), 0) *
+                    pi / 4
+    )
+}
+
+CSR <- create_OD_area(CSR, 1)
+CSR <- create_OD_area(CSR, 2)
+CSR <- create_OD_area(CSR, 3)
+CSR <- create_OD_area(CSR, 4)
+CSR <- create_OD_area(CSR, 5)
+CSR <- create_OD_area(CSR, 6)
+
+create_OS_area <- function(data, suffix) {
+  width_col  <- paste0("OS_Subretinal_Fluid_Max_Width_", suffix)
+  height_col <- paste0("OS_Subretinal_Fluid_Max_Height_", suffix)
+  area_col   <- paste0("OS_Area_", suffix)
+
+  data %>%
+    mutate(
+      !!area_col := replace_na(as.numeric(.data[[width_col]]), 0) *
+                    replace_na(as.numeric(.data[[height_col]]), 0) *
+                    pi / 4
+    )
+}
+
+CSR <- create_OS_area(CSR, 1)
+CSR <- create_OS_area(CSR, 2)
+CSR <- create_OS_area(CSR, 3)
+CSR <- create_OS_area(CSR, 4)
+CSR <- create_OS_area(CSR, 5)
+CSR <- create_OS_area(CSR, 6)
+
+```
+
+```{r}
+#Patient factors vs 
+```
+
+
