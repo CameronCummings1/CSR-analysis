@@ -1,0 +1,178 @@
+---
+title: "CSR"
+output: 
+  pdf_document:
+    latex_engine: xelatex
+date: "2025-11-28"
+---
+
+```{r}
+library(readxl)
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+library(gt)
+library(zipcodeR)
+library(maps)
+library(janitor)
+
+CSR <- read_excel("CSR manual export.xlsx", sheet = "DATA")
+
+
+#Combining Categories
+CSR <- CSR %>%
+  rowwise() %>%
+  mutate(
+    Race = paste(
+      c(
+        if (Race_white == 1) "White",
+        if (Race_black == 1) "Black",
+        if (Race_hispanic == 1) "Hispanic",
+        if (Race_asian == 1) "Asian",
+        if (Race_other == 1) "Other",
+        if (Race_declined == 1) "Declined"
+      ),
+      collapse = ", "
+    )
+  ) %>%
+  ungroup()
+
+CSR <- CSR %>%
+  rowwise() %>%
+  mutate(
+    PsychHx = paste(
+      c(
+        if (Anxiety == 1) "Anxiety",
+        if (MDD == 1) "MDD"
+      ),
+      collapse = ", "
+    ),
+    PsychHx = ifelse(PsychHx == "", "None", PsychHx)
+  ) %>%
+  ungroup()
+
+CSR <- CSR %>%
+  rowwise() %>%
+  mutate(
+    Known_Associations = paste(
+      c(
+        if (HTN == 1) "HTN",
+        if (CAD == 1) "CAD",
+        if (DM2 == 1) "DM2",
+        if (H_pylori == 1) "H. pylori",
+        if (PUD == 1) "PUD",
+        if (OSA == 1) "OSA"
+      ),
+      collapse = ", "
+    ),
+    Known_Associations = ifelse(Known_Associations == "", "None", Known_Associations)
+  ) %>%
+  ungroup()
+```
+
+```{r}
+#Calculating volumes
+
+create_OD_area <- function(data, suffix) {
+  width_col  <- paste0("OD_Subretinal_Fluid_Max_Width_", suffix)
+  height_col <- paste0("OD_Subretinal_Fluid_Max_Height_", suffix)
+  area_col   <- paste0("OD_Area_", suffix)
+
+  data %>%
+    mutate(
+      !!area_col := as.numeric(.data[[width_col]]) *
+                    as.numeric(.data[[height_col]]) *
+                    pi / 4
+    )
+}
+
+CSR <- create_OD_area(CSR, 1)
+CSR <- create_OD_area(CSR, 2)
+CSR <- create_OD_area(CSR, 3)
+CSR <- create_OD_area(CSR, 4)
+CSR <- create_OD_area(CSR, 5)
+CSR <- create_OD_area(CSR, 6)
+
+create_OS_area <- function(data, suffix) {
+  width_col  <- paste0("OS_Subretinal_Fluid_Max_Width_", suffix)
+  height_col <- paste0("OS_Subretinal_Fluid_Max_Height_", suffix)
+  area_col   <- paste0("OS_Area_", suffix)
+
+  data %>%
+    mutate(
+      !!area_col := as.numeric(.data[[width_col]]) *
+                    as.numeric(.data[[height_col]]) *
+                    pi / 4
+    )
+}
+
+CSR <- create_OS_area(CSR, 1)
+CSR <- create_OS_area(CSR, 2)
+CSR <- create_OS_area(CSR, 3)
+CSR <- create_OS_area(CSR, 4)
+CSR <- create_OS_area(CSR, 5)
+CSR <- create_OS_area(CSR, 6)
+
+```
+
+```{r}
+#Find initial visit with SRF measurements
+library(dplyr)
+library(purrr)
+
+CSR <- CSR %>%
+  mutate(
+    First_SRF_Measurement = pmap_chr(
+      list(
+        OD_Area_1, OD_Area_2, OD_Area_3, OD_Area_4, OD_Area_5, OD_Area_6,
+        OD_Visit_Date_1, OD_Visit_Date_2, OD_Visit_Date_3,
+        OD_Visit_Date_4, OD_Visit_Date_5, OD_Visit_Date_6
+      ),
+      function(a1,a2,a3,a4,a5,a6,d1,d2,d3,d4,d5,d6) {
+        areas <- c(a1,a2,a3,a4,a5,a6)
+        dates <- c(d1,d2,d3,d4,d5,d6)
+        # find first index that is not NA (0 counts as a value)
+        first_idx <- which(!is.na(areas))[1]
+        if (!is.na(first_idx)) {
+          return(as.character(dates[first_idx]))
+        } else {
+          return(NA_character_)
+        }
+      }
+    )
+  )
+
+#Find final visit with SRF measurements
+library(dplyr)
+library(purrr)
+
+CSR <- CSR %>%
+  mutate(
+    Last_SRF_Measurement = pmap_chr(
+      list(
+        OD_Area_1, OD_Area_2, OD_Area_3, OD_Area_4, OD_Area_5, OD_Area_6,
+        OD_Visit_Date_1, OD_Visit_Date_2, OD_Visit_Date_3,
+        OD_Visit_Date_4, OD_Visit_Date_5, OD_Visit_Date_6
+      ),
+      function(a1,a2,a3,a4,a5,a6,d1,d2,d3,d4,d5,d6) {
+        areas <- c(a1,a2,a3,a4,a5,a6)
+        dates <- c(d1,d2,d3,d4,d5,d6)
+        idx <- which(!is.na(areas))
+        if (length(idx) > 0) {
+          last_idx <- tail(idx, 1)
+          return(as.character(dates[last_idx]))
+        } else {
+          return(NA_character_)
+        }
+      }
+    )
+  )
+```
+
+```{r}
+#Patient factors vs % change in volume
+
+
+```
+
+
